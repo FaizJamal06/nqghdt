@@ -6,7 +6,8 @@ cd "$(dirname "$0")/.." || exit 1
 bin=.venv/Scripts # Windows venv; Linux/macOS venvs use .venv/bin
 [ -d "$bin" ] || bin=.venv/bin
 
-cd backend &&
+cmp Dockerfile Dockerfile.vercel &&
+  cd backend &&
   "../$bin/ruff" check . &&
   "../$bin/ruff" format --check . &&
   "../$bin/python" -m pytest --cov --cov-report=term-missing &&

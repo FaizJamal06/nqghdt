@@ -9,6 +9,9 @@ jobs:
         working-directory: backend
     steps:
       - uses: actions/checkout@v4
+      # Vercel builds Dockerfile.vercel (it wins over detected frameworks); keep it a copy.
+      - name: Dockerfile.vercel matches Dockerfile
+        run: cmp ../Dockerfile ../Dockerfile.vercel
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
