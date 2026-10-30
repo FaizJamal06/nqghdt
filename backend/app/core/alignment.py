@@ -9,7 +9,7 @@ from datetime import date, timedelta
 
 import pandas as pd
 
-from app.core.timeutils import UK, delivery_date, settlement_period
+from app.core.timeutils import UK, decision_cutoff, delivery_date, settlement_period
 
 SCORED_COLUMNS = [
     "startTime",
@@ -81,3 +81,17 @@ def score(
         "missing_actual": len(in_window) - len(df),
     }
     return df[SCORED_COLUMNS].sort_values("startTime").reset_index(drop=True), coverage
+
+
+def train_test_split(
+    scored: pd.DataFrame, train_end: date, known_before: str = "09:00"
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Split for fitting correction and bands without look-ahead (DECISIONS #38).
+
+    test  = delivery days after train_end (21 Jan - 1 Feb by default).
+    train = periods whose actual was already known at the first test decision: startTime
+            before train_end at `known_before` UK (20 Jan 09:00; that decision is made at
+            20 Jan 09:20). Periods in between (20 Jan 09:00-23:00) are in neither set.
+    """
+    known = decision_cutoff(train_end + timedelta(days=1), known_before)
+    return scored[scored["startTime"] < known], scored[scored["delivery_date"] > train_end]
