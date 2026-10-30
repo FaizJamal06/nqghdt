@@ -94,7 +94,7 @@ def ingest(settings: Settings, client: ElexonClient) -> dict[str, Any]:
             "malformed_skipped": wf_bad,
         },
     }
-    (out / MANIFEST_FILE).write_text(json.dumps(manifest, indent=2) + "\n")
+    (out / MANIFEST_FILE).write_text(json.dumps(manifest, indent=2) + "\n", newline="\n")
     return manifest
 
 
