@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Runs what CI runs (.github/workflows/ci.yml), stopping at the first failure.
+# Run before every push, from Git Bash:  scripts/check
+# (CI also does a clean `npm ci`; this uses the node_modules you have.)
+cd "$(dirname "$0")/.." || exit 1
+bin=.venv/Scripts # Windows venv; Linux/macOS venvs use .venv/bin
+[ -d "$bin" ] || bin=.venv/bin
+
+cd backend &&
+  "../$bin/ruff" check . &&
+  "../$bin/ruff" format --check . &&
+  "../$bin/python" -m pytest --cov --cov-report=term-missing &&
+  cd ../frontend &&
+  npm run lint &&
+  npm run build &&
+  echo "check: all passed"

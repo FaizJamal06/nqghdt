@@ -40,6 +40,7 @@ class DataStore:
         self.selected = lru_cache(maxsize=64)(self._selected)
         self.scored = lru_cache(maxsize=64)(self._scored)
         self.fitted = lru_cache(maxsize=64)(self._fitted)
+        self.calibration = lru_cache(maxsize=64)(self._calibration)
 
     @staticmethod
     def key(mode: str, cutoff: str, horizon_h: float) -> Key:
@@ -75,6 +76,14 @@ class DataStore:
         model = bands.fit_bands(train, s.band_horizon_buckets, s.band_level_bins, s.band_min_cell)
         return Fitted(corr, model, train, test)
 
+    def _calibration(self, key: Key) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """Band coverage (with the by-day bootstrap) and every correction candidate scored
+        on test: (levels, compare). Slow (~0.5 s), so cached like the fit."""
+        fit = self.fitted(key)
+        return bands.calibration(fit.model, fit.train, fit.test), correction.compare(
+            fit.train, fit.test
+        )
+
     def day_frame(self, key: Key, day: date) -> pd.DataFrame:
         """One delivery day's selected rows with centre_mw, local labels and actuals (if any).
 
@@ -109,6 +118,6 @@ class DataStore:
 
     def warm(self) -> None:
         """Precompute the default mode and the mode-independent tables at startup."""
-        self.fitted(("cutoff", self.s.cutoff_default))
+        self.calibration(("cutoff", self.s.cutoff_default))
         self.lead_time()
         self.value_of_waiting()
