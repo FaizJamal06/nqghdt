@@ -4,6 +4,9 @@ Run from backend/:  python -m app.report
 Pure composition of core/ functions through the same DataStore the API uses.
 """
 
+import time
+from pathlib import Path
+
 import pandas as pd
 
 from app.config import Settings
@@ -37,6 +40,21 @@ def publish_schedule(snap: Snapshot, s: Settings) -> None:
         ]
         picks = sel["publishTime"].dt.tz_convert(UK).dt.strftime("%H:%M:%S").value_counts()
         print(f"  cutoff {cutoff} picks publishes at: {picks.to_dict()}")
+
+
+def warm_timings() -> None:
+    """PRD §8 (< 300 ms warm): time a second request to each heavy endpoint, in ms."""
+    from fastapi.testclient import TestClient
+
+    from app.main import create_app
+
+    client = TestClient(create_app(Settings(static_dir=Path("does-not-exist"))))
+    print("\nWarm response times (second request, this machine):")
+    for url in ("/api/decision?date=2026-01-21", "/api/accuracy", "/api/calibration"):
+        client.get(url)
+        t = time.perf_counter()
+        client.get(url)
+        print(f"  {url}: {(time.perf_counter() - t) * 1000:,.0f} ms")
 
 
 def main() -> None:
@@ -93,6 +111,7 @@ def main() -> None:
         plans[kind] = planner.backtest(model, te, alpha).set_index("policy").loc["yours"]
     print("\nPlanner at 80% confidence (P20 of residuals around each centre), TEST window:")
     print(fmt(pd.DataFrame(plans).T.drop(columns="alpha")))
+    warm_timings()
 
 
 if __name__ == "__main__":

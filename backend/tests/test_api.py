@@ -107,8 +107,10 @@ def test_planner_alpha_sources(client: TestClient) -> None:
     assert all(p["cost_gbp"] is not None for p in priced["policies"])
 
 
+@pytest.mark.perf
 def test_warm_responses_are_fast(client: TestClient) -> None:
-    """PRD §8: < 300 ms warm. Generous margin for CI runners."""
+    """PRD §8: < 300 ms warm. Depends on machine speed, so not in the default run
+    (pytest -m perf); app.report prints the same timings."""
     for url in ("/api/decision?date=2026-01-21", "/api/accuracy", "/api/calibration"):
         client.get(url)
         t = time.perf_counter()
