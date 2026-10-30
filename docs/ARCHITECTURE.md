@@ -1,6 +1,6 @@
 # Architecture
 
-_Status: M2 (core analytics). Updated after every milestone._
+_Status: M3 (API). Updated after every milestone._
 
 ```
             offline, once                         runtime (one container / one process)
@@ -24,6 +24,7 @@ _Status: M2 (core analytics). Updated after every milestone._
 | `elexon_client.py` | `ElexonClient`: one-day chunked GETs with retries on 429/5xx (exponential backoff, honours `Retry-After`), raising after N tries. Pydantic row models plus `validate_rows`, which skips and counts malformed rows. |
 | `ingest.py` | CLI. `python -m app.data.ingest` fetches and writes `data/raw/{fuelhh_wind,windfor}.csv.gz` + `manifest.json`. The gzip files are deterministic (`mtime=0`), so re-runs give identical bytes. `--check` prints cleaning counts, resolution and per-day coverage. |
 | `loaders.py` | `load_snapshot()` reads the CSVs, then the pure `clean_actuals` / `clean_forecasts` count every dropped row. `detect_resolution_min` returns 30 or 60. |
+| `store.py` | `DataStore`: the snapshot plus bounded LRU caches per mode key (`("cutoff","09:20")` / `("horizon",24.0)`): selection, scored frame, fitted correction + bands; cached lead-time curve and value-of-waiting table; `day_frame()` for one delivery day. Built and warmed once in `create_app()`. |
 
 Snapshot (committed): 116 KB in total. FUELHH 1,584 half-hours; WINDFOR 19,856 rows → 15,775 after cleaning, hourly resolution.
 
@@ -46,11 +47,31 @@ forecasts ─► selection ─► alignment.score ─► scored frame ─► met
 | `correction.py` | raw / constant / linear / proportional post-processing; output `centre_mw`. Reads only the forecast (guarded). Fitted, like the bands, on `alignment.train_test_split`'s train rows: only actuals known at the first test decision. |
 | `bands.py` | Train residuals per cell (supports horizon × level; config uses 3 wind-level cells), fallback horizon → pooled, quantiles on demand, PICP + by-day bootstrap. |
 | `planner.py` | Newsvendor alpha (R9), planned wind = centre + residual quantile (≥ 0, R10), policy backtest in MWh (and £). |
+| `decision.py` | One delivery day: band, planned wind, flags (`low_wind`, `wide_band`, `big_revision`), freshness from the cutoff, day and peak-block MWh totals. |
 
-`backend/app/report.py` (`python -m app.report`) composes these and prints the January summary. `scored_for()` there is what the M3 `DataStore` will cache.
+`backend/app/report.py` (`python -m app.report`) prints the January summary through the same `DataStore` the API uses.
 
-## Current endpoints
-| Route | File |
-|---|---|
-| `GET /api/health` | `backend/app/api/routes/meta.py` |
-| `GET /docs` | FastAPI built-in |
+## API layer (`backend/app/api/`): validate → call → serialise
+
+`deps.py` holds the shared query parameters (422 on bad input), the `Store` dependency and `records()` (DataFrame → JSON rows, NaN → null). Each route file is one page of the UI and stays under ~25 lines of logic. Every response is validated against `backend/app/schemas.py`.
+
+| Route | File | Page | Key params |
+|---|---|---|---|
+| `GET /api/health` | `routes/meta.py` | — | — |
+| `GET /api/meta` | `routes/meta.py` | all (startup) | — |
+| `GET /api/decision` | `routes/decision.py` | Decision View | `date` (required), mode, `confidence`, `band` 0.5/0.8/0.9 |
+| `GET /api/accuracy` | `routes/accuracy.py` | Forecast Trust | mode |
+| `GET /api/calibration` | `routes/calibration.py` | Forecast Trust, Methodology | mode |
+| `GET /api/planner` | `routes/planner.py` | Buffer Planner | `confidence` or `c_short`+`c_long` or `price_short`+`price_long`; optional `date` |
+| `GET /api/timeseries` | `routes/timeseries.py` | Overview | mode |
+| `GET /docs` | FastAPI built-in | live API docs | — |
+
+Mode params everywhere: `mode=cutoff|horizon`, `cutoff=HH:MM` (default 09:20), `horizon_h` 0–40 (default 24).
+
+### One request, end to end: `GET /api/decision?date=2026-01-21`
+
+1. `deps.get_mode` validates `cutoff`/`mode`/`horizon_h` and builds the key `("cutoff", "09:20")`; `check_date` checks 21 Jan is in the window.
+2. `store.fitted(key)`: already cached at startup (selection → scored frame → leak-free split → proportional correction → 3 level cells).
+3. `store.day_frame(key, 21 Jan)`: that day's 24 selected rows (all from the 20 Jan 07:30 publish) with `centre_mw`, SP, local time and actuals.
+4. `core.decision.day_periods`: band (P10–P90 of the cell's residuals around the centre), planned wind (P20 at 80% confidence), flags. `freshness`: 07:30 publish, 110 min before the 09:20 cutoff, not stale. `day_totals`: MWh.
+5. `records()` → `DecisionResponse` validates the shape → JSON. Warm: ~25 ms.
