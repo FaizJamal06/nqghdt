@@ -109,8 +109,11 @@ class DayTotals(BaseModel):
     peak_forecast_mwh: float
     peak_planned_mwh: float
     actual_mwh: float | None
-    error_mwh: float | None
+    peak_actual_mwh: float | None
+    error_mwh: float | None  # trusting WINDFOR: actual - forecast (negative = short)
     peak_error_mwh: float | None
+    plan_error_mwh: float | None  # following the plan: actual - planned
+    peak_plan_error_mwh: float | None
 
 
 class DayCoverage(BaseModel):

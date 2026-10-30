@@ -45,7 +45,8 @@ def planner(
     day = None
     if date is not None:
         frame = store.day_frame(m.key, check_date(store, date))
-        rows = day_periods(frame, fit.model, store.s.band_central_default, alpha)
+        s = store.s
+        rows = day_periods(frame, fit.model, s.band_central_default, alpha, s.revision_flag_mw)
         day = records(rows.rename(columns={"startTime": "start_time"}))
     return PlannerResponse(
         alpha=alpha,

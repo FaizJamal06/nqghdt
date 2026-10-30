@@ -39,6 +39,8 @@ class Settings(BaseSettings):
     horizon_max_h: float = 40
     # DECISIONS #5: peak block = periods starting 16:00-18:30 UK local.
     peak_hours: tuple[int, int] = (16, 19)
+    # DECISIONS #60: risky hour = |revision vs previous publish| >= this (absolute, not per day).
+    revision_flag_mw: float = 1000
     # DECISIONS #29: the centre bands and planner sit on. Fitted on train days only.
     # proportional won test MAE at all three cutoffs (DECISIONS #39, confirmed).
     correction: Literal["raw", "constant", "linear", "proportional"] = "proportional"

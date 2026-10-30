@@ -30,7 +30,8 @@ def decision(
     if central not in BAND_LEVELS:
         raise HTTPException(422, f"band must be one of {BAND_LEVELS}")
     fit, alpha = store.fitted(m.key), alpha_from_confidence(confidence)
-    periods = day_periods(store.day_frame(m.key, day), fit.model, central, alpha)
+    frame = store.day_frame(m.key, day)
+    periods = day_periods(frame, fit.model, central, alpha, store.s.revision_flag_mw)
 
     cutoff_utc = decision_cutoff(day, m.cutoff) if m.mode == "cutoff" else None
     rows = records(
