@@ -1,6 +1,6 @@
 # Architecture
 
-_Status: M6 (all five pages, deployed at https://nqghdt.vercel.app). Updated after every milestone._
+_Status: final (M7). Five pages, deployed at https://nqghdt.vercel.app. Matches the code as of this commit._
 
 ```
             offline, once                         runtime (one container / one process)
@@ -25,7 +25,7 @@ _Status: M6 (all five pages, deployed at https://nqghdt.vercel.app). Updated aft
 | `elexon_client.py` | `ElexonClient`: one-day chunked GETs with retries on 429/5xx (exponential backoff, honours `Retry-After`), raising after N tries. Pydantic row models plus `validate_rows`, which skips and counts malformed rows. |
 | `ingest.py` | CLI. `python -m app.data.ingest` fetches and writes `data/raw/{fuelhh_wind,windfor}.csv.gz` + `manifest.json`. The gzip files are deterministic (`mtime=0`), so re-runs give identical bytes. `--check` prints cleaning counts, resolution and per-day coverage. |
 | `loaders.py` | `load_snapshot()` reads the CSVs, then the pure `clean_actuals` / `clean_forecasts` count every dropped row. `detect_resolution_min` returns 30 or 60. |
-| `store.py` | `DataStore`: the snapshot plus bounded LRU caches per mode key (`("cutoff","09:20")` / `("horizon",24.0)`): selection, scored frame, fitted correction + bands; cached lead-time curve and value-of-waiting table; `day_frame()` for one delivery day. Built and warmed once in `create_app()`. |
+| `store.py` | `DataStore`: the snapshot plus bounded LRU caches per mode key (`("cutoff","09:20")` / `("horizon",24.0)`): selection, scored frame, fitted correction + bands, calibration (band coverage with its by-day bootstrap, and the correction comparison: ~0.5 s to compute, so cached); cached lead-time curve and value-of-waiting table; `day_frame()` for one delivery day. Built and warmed once in `create_app()`. |
 
 Snapshot (committed): 116 KB in total. FUELHH 1,584 half-hours; WINDFOR 19,856 rows → 15,775 after cleaning, hourly resolution.
 
@@ -50,7 +50,7 @@ forecasts ─► selection ─► alignment.score ─► scored frame ─► met
 | `planner.py` | Newsvendor alpha (R9), planned wind = centre + residual quantile (≥ 0, R10), policy backtest in MWh (and £). |
 | `decision.py` | One delivery day: band, planned wind, flags (`low_wind`; `big_revision` = abs(revision) ≥ `revision_flag_mw`, 1,000 MW), freshness from the cutoff, day and peak-block MWh totals (plus hindsight: actual, and gross MWh short and long for trusting WINDFOR and for following the plan). |
 
-`backend/app/report.py` (`python -m app.report`) prints the January summary through the same `DataStore` the API uses.
+`backend/app/report.py` (`python -m app.report`) prints the January summary through the same `DataStore` the API uses, and ends with warm response times on the current machine.
 
 ## API layer (`backend/app/api/`): validate → call → serialise
 
@@ -75,7 +75,7 @@ Mode params everywhere: `mode=cutoff|horizon`, `cutoff=HH:MM` (default 09:20), `
 2. `store.fitted(key)`: already cached at startup (selection → scored frame → leak-free split → proportional correction → 3 level cells).
 3. `store.day_frame(key, 21 Jan)`: that day's 24 selected rows (all from the 20 Jan 07:30 publish) with `centre_mw`, SP, local time and actuals.
 4. `core.decision.day_periods`: band (P10–P90 of the cell's residuals around the centre), planned wind (P20 at 80% confidence), flags. `freshness`: 07:30 publish, 110 min before the 09:20 cutoff, not stale. `day_totals`: MWh.
-5. `records()` → `DecisionResponse` validates the shape → JSON. Warm: ~25 ms.
+5. `records()` → `DecisionResponse` validates the shape → JSON. Warm: ~35 ms on a quiet laptop (`python -m app.report`); the PRD target is < 300 ms.
 
 ## Frontend (`frontend/src/`)
 
@@ -97,3 +97,14 @@ React 18 + TypeScript strict + Vite, Tailwind, TanStack Query (fetch + cache), R
 | `components/ChartCard.tsx` | Card = title + generated note + chart + "Show as table" twin (no value reachable by hover only) |
 
 Dev: `npm run dev` on :5173 proxies `/api` to uvicorn on :8000. Production: `npm run build` → `frontend/dist`, served by FastAPI on the same origin.
+
+## Quality and delivery
+
+| Piece | What it does |
+|---|---|
+| `backend/tests/` | 80 tests: one file per `core/` module (100% coverage on `core/`), the data layer with a mocked Elexon client, and API contract tests (200 + schema on valid params, 422 on invalid ones). Hand-checkable fixtures, plus real-snapshot worked examples. |
+| `pytest -m perf` | The warm-response timing test (< 300 ms). Deselected by default (`pyproject.toml`), because it measures the machine as well as the code. |
+| `.github/workflows/ci.yml` | On every push. Backend job: `cmp Dockerfile Dockerfile.vercel`, ruff check, ruff format --check, pytest with coverage. Frontend job: `npm ci`, ESLint + Prettier, TypeScript strict build. |
+| `scripts/check` | The same steps, chained with `&&`, run locally before each push (a local pre-push hook calls it). |
+| `docker-compose.yml` | One service built from the root `Dockerfile`, on http://localhost:8080. |
+| Vercel | The same image on the Container runtime (beta). It scales to zero after ~5 min idle; the cold start is ~3.5 s. |
