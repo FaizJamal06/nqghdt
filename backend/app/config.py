@@ -3,7 +3,7 @@
 Every field can be overridden by an env var of the same name, e.g. ``DATA_DIR=/app/data``.
 """
 
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Literal
 
@@ -26,6 +26,13 @@ class Settings(BaseSettings):
 
     # PRD §5.5: bands fitted on delivery days up to and including this date, tested after it.
     band_train_end: date = date(2026, 1, 20)
+
+    # PRD §4 fetch windows, padded so every preset cutoff, horizon mode and the
+    # "latest before delivery" comparison have data at both edges of the window.
+    fuelhh_from: date = date(2026, 1, 1)  # settlement dates, inclusive
+    fuelhh_to: date = date(2026, 2, 2)
+    windfor_from: datetime = datetime(2025, 12, 30, tzinfo=UTC)  # publish times, UTC
+    windfor_to: datetime = datetime(2026, 2, 2, tzinfo=UTC)  # exclusive
 
     data_mode: Literal["snapshot", "live"] = "snapshot"
     data_dir: Path = REPO_ROOT / "data" / "raw"
