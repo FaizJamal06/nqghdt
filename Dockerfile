@@ -13,7 +13,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/app ./app
 COPY --from=web /web/dist ./static
-# TODO(M1): COPY data/raw ./data/raw once the snapshot exists.
+COPY data/raw ./data/raw
 ENV STATIC_DIR=/srv/static \
     DATA_DIR=/srv/data/raw \
     PORT=8000

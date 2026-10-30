@@ -1,0 +1,24 @@
+{
+  "fetched_at": "2026-10-30T06:21:34Z",
+  "source": "https://data.elexon.co.uk/bmrs/api/v1",
+  "fuelhh": {
+    "url": "https://data.elexon.co.uk/bmrs/api/v1/datasets/FUELHH/stream",
+    "params": "settlementDateFrom/To per day, fuelType=WIND",
+    "window": [
+      "2026-01-01",
+      "2026-02-02"
+    ],
+    "rows": 1584,
+    "malformed_skipped": 0
+  },
+  "windfor": {
+    "url": "https://data.elexon.co.uk/bmrs/api/v1/datasets/WINDFOR/stream",
+    "params": "publishDateTimeFrom/To per day (UTC)",
+    "window": [
+      "2025-12-30T00:00:00+00:00",
+      "2026-02-02T00:00:00+00:00"
+    ],
+    "rows": 19856,
+    "malformed_skipped": 0
+  }
+}
