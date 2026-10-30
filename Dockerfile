@@ -20,5 +20,6 @@ ENV STATIC_DIR=/srv/static \
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=3s \
   CMD python -c "import urllib.request,os;urllib.request.urlopen(f'http://localhost:{os.environ[\"PORT\"]}/api/health')"
-# Shell form so $PORT expands (Heroku injects its own).
-CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT}
+# sh -c so $PORT expands (Heroku injects its own); exec so uvicorn is PID 1 and gets
+# SIGTERM directly (clean, fast shutdown).
+CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]
