@@ -1,6 +1,6 @@
 # Architecture
 
-_Status: M5 (all five pages: Overview, Decision View, Forecast Trust, Buffer Planner, Methodology). Updated after every milestone._
+_Status: M6 (all five pages, deployed at https://nqghdt.vercel.app). Updated after every milestone._
 
 ```
             offline, once                         runtime (one container / one process)
@@ -14,6 +14,7 @@ _Status: M5 (all five pages: Overview, Decision View, Forecast Trust, Buffer Pla
 ```
 
 - **One process serves everything.** The root `Dockerfile` builds the React app in a Node stage and copies only `dist/` into a `python:3.12-slim` image. FastAPI serves `/api/*` and the static files on the same origin, so no CORS is needed.
+- **Production:** the same image on Vercel's Container runtime (beta). `Dockerfile.vercel` is a byte copy of `Dockerfile` that makes Vercel choose the Container preset over the frameworks it detects in `backend/` and `frontend/`; CI and `scripts/check` fail if the two differ. The container scales to zero after ~5 min idle.
 - **Dev mode:** `uvicorn` on :8000 plus `npm run dev` on :5173. Vite proxies `/api` to :8000.
 - **Config:** `backend/app/config.py` (pydantic-settings). Paths can be overridden by env vars (`DATA_DIR`, `STATIC_DIR`, `PORT` in Docker).
 
