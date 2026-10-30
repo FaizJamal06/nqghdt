@@ -1,6 +1,6 @@
 # Architecture
 
-_Status: M4 (frontend shell, Overview, Decision View). Updated after every milestone._
+_Status: M5 (all five pages: Overview, Decision View, Forecast Trust, Buffer Planner, Methodology). Updated after every milestone._
 
 ```
             offline, once                         runtime (one container / one process)
@@ -90,5 +90,9 @@ React 18 + TypeScript strict + Vite, Tailwind, TanStack Query (fetch + cache), R
 | `components/charts/MonthChart.tsx` | Overview: forecast at the gate vs actual, shortfalls shaded |
 | `pages/Overview.tsx` | 4 KPI tiles (with n), one January chart, 4 sentences generated from `/api/accuracy` (the problem) and `/api/planner` (the solution, test days) |
 | `pages/DecisionView.tsx` | Day picker (default 21 Jan), in/out-of-sample badge, freshness, hover-driven sentence ("Based on 2–20 Jan…", range from `/api/meta`), risky hours, MWh totals, period table; fewer axis labels below 640 px (`lib/useNarrow.ts`) |
+| `pages/ForecastTrust.tsx` + `charts/TrustCharts.tsx` | KPI tiles; error vs lead time; honest vs flattering; value of waiting; error by hour and by wind level (+ bias diagnosis); histogram with P10/P90; band coverage (train/test, by-day range); correction candidates; 10 worst misses. Every takeaway sentence generated |
+| `pages/BufferPlanner.tsx` | Uses the global confidence / cost-ratio dial; one-sentence alpha explanation; headline backtest sentence; policy table with "yours" highlighted; optional £/MWh (empty by default, "your assumption") |
+| `pages/Methodology.tsx` | Data, cutoff rule, sign convention, metrics, why not MAPE, correction/bands/plan, limitations; data-dependent numbers from `/api/meta` + `/api/calibration` |
+| `components/ChartCard.tsx` | Card = title + generated note + chart + "Show as table" twin (no value reachable by hover only) |
 
 Dev: `npm run dev` on :5173 proxies `/api` to uvicorn on :8000. Production: `npm run build` → `frontend/dist`, served by FastAPI on the same origin.

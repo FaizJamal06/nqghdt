@@ -1,6 +1,6 @@
 # Methodology
 
-_Status: data section (M1); horizon cap, bias diagnosis and correction (M2). Metric, band and planner write-ups are completed in M5._
+_Status: complete as of M5. The in-app Methodology page (`/methodology`) is the short version of this file; its data-dependent numbers come from `/api/meta` and `/api/calibration`._
 
 ## Data
 
@@ -32,6 +32,20 @@ WINDFOR forecasts are hourly and FUELHH actuals are half-hourly. Each forecast h
 - At the **09:20** cutoff, the latest forecast is always the **07:30 publish (110 min old)**. It covers all 24 hours of D, at horizons of **16.5 h** (D 00:00) to **39.5 h** (D 23:00).
 - The 09:30 publish arrives 10 minutes *after* the EPEX gate, so it can only inform the N2EX auction (09:50 cutoff preset).
 - All publish times are on the whole minute (`hh:mm:00`). Every January delivery hour gets the same publish from each preset: 09:20 → 07:30, 09:50 → 09:30, 15:30 → 15:30 (a forecast published exactly at the cutoff counts as available).
+
+## Sign convention and metrics
+
+**Error = actual − forecast** (R7). Negative = less wind than forecast = the desk is short and buys the gap; red always means short in the UI.
+
+- **MAE**: mean |error|, MW. **RMSE**: root mean squared error, MW; big misses weigh more. **Bias**: mean error, MW.
+- **nMAE / nRMSE**: the same as a % of mean actual (in the API, not headlined).
+- **Quantiles** (P5…P95) of the error; **exceedance**: % of hours short by more than 1 GW / 2 GW.
+- **Coverage (PICP)**: share of hours whose actual lies inside the band.
+- Every metric carries `n` (hours) and `n_days`; comparisons (honest vs flattering, value of waiting) are computed on the **same hours** for each side.
+
+**Why not MAPE?** It divides by the actual, so calm hours (a few hundred MW) dominate the average and a 500 MW miss can read as 100%. It also treats over- and under-forecasts asymmetrically. The desk pays for MW and MWh, so errors stay in MW.
+
+**Honest vs flattering.** Scoring the last forecast before delivery (MAE 1,687 MW) instead of the one available at 09:20 (2,039 MW) would make WINDFOR look 17% better than what the trader could act on.
 
 ## Fixed-horizon mode is capped at 40 hours
 
@@ -107,4 +121,16 @@ The mid-wind cell is narrower than low-wind, but a by-day bootstrap of the width
 
 The 50% band over-covers on the test window (63%, range 51–74%), while the 80% band holds (80%). The Decision View shows the 80% band by default.
 
-**Limitations.** The parameters come from 19 days. The model was chosen *by* these test numbers (4 candidates), so they are slightly optimistic. A live product would refit on a rolling window. Binned bands jump at cell edges; smoothing between cells is on the polish list.
+## Buffer planner
+
+Newsvendor rule (R9): plan on the alpha-quantile of likely wind, `planned = centre + q_alpha(residual | cell)`, clipped at 0 MW (R10). alpha = 1 − confidence, or c_long / (c_short + c_long) from a cost ratio or from £/MWh prices the user types in (labelled "your assumption"; nothing is assumed by default). The backtest scores raw, P50, P20, P10 and the user's alpha on the 288 test hours only: % hours short, shortfall MWh, excess MWh, MWh bought beyond the forecast and, with prices, £. At 80%: short in 22% of hours, against 287 of 288 when trusting WINDFOR, for 975,961 MWh more than the forecast (81,330 MWh a day).
+
+## Limitations (whole app)
+
+- **One month**, about 31 independent days; the test window is 12 days. Ranges (by-day bootstrap) are shown where it matters.
+- The centre was **chosen by looking at the test numbers** (4 candidates), so they are slightly optimistic.
+- **Curtailment** looks like a forecast miss and can't be separated with these two datasets.
+- **Embedded wind** (small farms on distribution networks) isn't in these figures, so they understate total GB wind output.
+- **Flat £ prices understate cost**: imbalance prices tend to spike when wind under-delivers.
+
+**Band limitations.** The parameters come from 19 days. The model was chosen *by* these test numbers (4 candidates), so they are slightly optimistic. A live product would refit on a rolling window. Binned bands jump at cell edges; smoothing between cells is on the polish list.
