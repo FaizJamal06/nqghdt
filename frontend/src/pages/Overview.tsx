@@ -1,13 +1,27 @@
-// Overview: the 10-second story. 4 KPI tiles, one January chart, 3 generated sentences.
-import { useAccuracy, useTimeseries } from "../api/client";
-import type { Accuracy } from "../api/types";
+// Overview: the 10-second story. 4 KPI tiles, one January chart, 4 generated sentences
+// (3 on the problem, 1 on the solution).
+import { useAccuracy, useMeta, usePlanner, useTimeseries } from "../api/client";
+import type { Accuracy, Meta, Planner } from "../api/types";
 import MonthChart from "../components/charts/MonthChart";
 import KpiTile from "../components/KpiTile";
 import { ErrorState, Skeleton } from "../components/Status";
-import { gw, mw, pct, signedMw } from "../lib/format";
-import { type Settings, useSettings } from "../state/settings";
+import { gw, mw, pct, signedMw, splitLabels } from "../lib/format";
+import {
+  type Settings,
+  effectiveConfidence,
+  useSettings,
+} from "../state/settings";
 
-/** Three plain sentences generated from the numbers (no hand-written claims). */
+/** The solution, backtested on the out-of-sample days only (planner policies). */
+function solution(p: Planner, meta: Meta, s: Settings): string {
+  const yours = p.policies.find((r) => r.policy === "yours")!;
+  const raw = p.policies.find((r) => r.policy === "raw")!;
+  // A count, not a %: 99.7% would round to a false "100%".
+  const rawShort = Math.round((raw.pct_short / 100) * p.n_test);
+  return `Planning with WindDesk at ${pct(effectiveConfidence(s) * 100)} on the test days (${splitLabels(meta).test}): short in ${pct(yours.pct_short)} of hours, by design. Trusting WINDFOR: short in ${rawShort} of ${p.n_test}.`;
+}
+
+/** Plain sentences generated from the numbers (no hand-written claims). */
 function sentences(a: Accuracy, s: Settings): string[] {
   const when =
     s.mode === "cutoff"
@@ -33,6 +47,8 @@ export default function Overview() {
   const [s] = useSettings();
   const acc = useAccuracy(s);
   const ts = useTimeseries(s);
+  const plan = usePlanner(s);
+  const meta = useMeta().data;
 
   if (acc.isError)
     return <ErrorState error={acc.error} retry={() => acc.refetch()} />;
@@ -92,6 +108,9 @@ export default function Overview() {
           {sentences(a, s).map((t) => (
             <li key={t}>{t}</li>
           ))}
+          {plan.data && meta && (
+            <li className="font-medium">{solution(plan.data, meta, s)}</li>
+          )}
         </ul>
       )}
     </div>

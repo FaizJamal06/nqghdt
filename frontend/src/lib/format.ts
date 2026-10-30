@@ -1,6 +1,8 @@
 // Number and time formatting. Power in MW (GW for big headline numbers), energy in MWh.
 // All clock times are shown in UK local time (Europe/London).
 
+import type { Meta } from "../api/types";
+
 const UK = "Europe/London";
 
 export const mw = (v: number) => `${Math.round(v).toLocaleString("en-GB")} MW`;
@@ -47,6 +49,30 @@ export const dayLabel = (isoDate: string) =>
     day: "numeric",
     month: "short",
   });
+
+/** "2–20 Jan" or "21 Jan – 1 Feb" from two ISO dates. */
+export function dayRange(first: string, last: string) {
+  const f = (d: string, opts: Intl.DateTimeFormatOptions) =>
+    new Date(`${d}T12:00:00Z`).toLocaleDateString("en-GB", opts);
+  const sameMonth = first.slice(0, 7) === last.slice(0, 7);
+  return sameMonth
+    ? `${f(first, { day: "numeric" })}–${f(last, { day: "numeric", month: "short" })}`
+    : `${f(first, { day: "numeric", month: "short" })} – ${f(last, { day: "numeric", month: "short" })}`;
+}
+
+/** Train (fit) and test day ranges from /api/meta, e.g. "2–20 Jan" and "21 Jan – 1 Feb". */
+export function splitLabels(meta: Meta) {
+  const days = meta.delivery_days;
+  const i = days.indexOf(meta.band_train_end);
+  return {
+    train: dayRange(days[0], days[i]),
+    test: dayRange(days[i + 1], days[days.length - 1]),
+  };
+}
+
+/** Net energy with its direction: "1,234 MWh short" (negative, R7) or "567 MWh long". */
+export const shortLong = (v: number) =>
+  v < 0 ? `${mwh(-v)} short` : `${mwh(v)} long`;
 
 /** UK calendar date "2026-01-20" of a UTC ISO string. */
 export const ukDate = (iso: string) =>

@@ -8,7 +8,17 @@ import DecisionChart, {
 } from "../components/charts/DecisionChart";
 import { Empty, ErrorState, Skeleton } from "../components/Status";
 import { C } from "../lib/colors";
-import { dayLabel, gw, mw, mwh, signedMw, ukDate, ukTime } from "../lib/format";
+import {
+  dayLabel,
+  gw,
+  mw,
+  mwh,
+  shortLong,
+  signedMw,
+  splitLabels,
+  ukDate,
+  ukTime,
+} from "../lib/format";
 import { DEFAULT_DAY, useSettings } from "../state/settings";
 
 export default function DecisionView() {
@@ -24,9 +34,10 @@ export default function DecisionView() {
       <DayPicker days={meta?.delivery_days ?? []} date={date} />
       {q.isPending && <Skeleton className="h-96" />}
       {q.isError && <ErrorState error={q.error} retry={() => q.refetch()} />}
-      {q.data && (
+      {q.data && meta && (
         <DayContent
           d={q.data}
+          trainDays={splitLabels(meta).train}
           hover={hover}
           setHover={setHover}
           showActual={showActual}
@@ -122,13 +133,18 @@ function Freshness({ d }: { d: Decision }) {
   );
 }
 
-/** "WINDFOR says 20.9 GW at 17:00. Based on January, expect about 18.1 GW; plan on 16.3 GW…" */
-function sentence(p: Period, d: Decision, showActual: boolean) {
+/** "WINDFOR says 20.9 GW at 17:00. Based on 2–20 Jan, expect about 18.1 GW; plan on 16.3 GW…" */
+function sentence(
+  p: Period,
+  d: Decision,
+  trainDays: string,
+  showActual: boolean,
+) {
   const covered = Math.round((1 - d.alpha) * 100);
   const expect =
     d.correction.kind === "raw"
       ? ""
-      : ` Based on January, expect about ${gw(p.centre_mw)};`;
+      : ` Based on ${trainDays}, expect about ${gw(p.centre_mw)};`;
   const what =
     showActual && p.actual_mw !== null
       ? ` What happened: ${gw(p.actual_mw)}.`
@@ -138,12 +154,14 @@ function sentence(p: Period, d: Decision, showActual: boolean) {
 
 function DayContent({
   d,
+  trainDays,
   hover,
   setHover,
   showActual,
   setShowActual,
 }: {
   d: Decision;
+  trainDays: string;
   hover: string | null;
   setHover: (t: string | null) => void;
   showActual: boolean;
@@ -172,7 +190,7 @@ function DayContent({
 
       <section className="rounded-lg border bg-white p-4">
         <p className="mb-3 min-h-12 text-lg leading-snug text-slate-900">
-          {sentence(focus, d, showActual)}
+          {sentence(focus, d, trainDays, showActual)}
         </p>
         <DecisionChart
           periods={d.periods}
@@ -201,7 +219,7 @@ function DayContent({
         <section className="rounded-lg border bg-white p-4 text-sm">
           <h2 className="mb-2 font-semibold">Risky hours</h2>
           {risky.length === 0 ? (
-            <p className="text-slate-500">None flagged.</p>
+            <p className="text-slate-500">No risky hours flagged.</p>
           ) : (
             <ul className="space-y-1">
               {risky.map((p) => (
@@ -269,21 +287,33 @@ function Totals({ d, showActual }: { d: Decision; showActual: boolean }) {
             mwh(t.extra_mwh),
             mwh(t.peak_forecast_mwh - t.peak_planned_mwh),
           )}
-          {showActual &&
-            t.actual_mwh !== null &&
-            t.error_mwh !== null &&
-            t.peak_error_mwh !== null && (
-              <>
-                {row("Actual", mwh(t.actual_mwh), "")}
-                {row(
-                  "Forecast error (actual − forecast)",
-                  mwh(t.error_mwh),
-                  mwh(t.peak_error_mwh),
-                )}
-              </>
-            )}
+          {showActual && t.actual_mwh !== null && (
+            <>
+              {row("Actual", mwh(t.actual_mwh), mwh(t.peak_actual_mwh!))}
+              {row(
+                "If you'd trusted WINDFOR",
+                shortLong(t.error_mwh!),
+                shortLong(t.peak_error_mwh!),
+              )}
+              {row(
+                "Following the plan",
+                shortLong(t.plan_error_mwh!),
+                shortLong(t.peak_plan_error_mwh!),
+              )}
+            </>
+          )}
         </tbody>
       </table>
+      {showActual && t.actual_mwh === null && (
+        <p className="mt-2 text-xs text-slate-500">
+          Some hours have no actual yet, so no hindsight totals.
+        </p>
+      )}
+      {showActual && t.actual_mwh !== null && (
+        <p className="mt-2 text-xs text-slate-500">
+          Net over the hours: actual minus what you planned on.
+        </p>
+      )}
     </section>
   );
 }
@@ -299,8 +329,8 @@ function PeriodTable({
   showActual: boolean;
   central: number;
 }) {
-  const th = "px-2 py-1 text-right font-normal";
-  const td = "px-2 py-1 text-right tabular-nums";
+  const th = "px-2 py-1 text-right font-normal whitespace-nowrap";
+  const td = "px-2 py-1 text-right tabular-nums whitespace-nowrap"; // scroll, don't wrap, on phones
   return (
     <section className="overflow-x-auto rounded-lg border bg-white p-4 text-sm">
       <table className="w-full">

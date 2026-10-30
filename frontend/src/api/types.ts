@@ -58,8 +58,11 @@ export interface DayTotals {
   peak_forecast_mwh: number;
   peak_planned_mwh: number;
   actual_mwh: number | null;
-  error_mwh: number | null;
+  peak_actual_mwh: number | null;
+  error_mwh: number | null; // trusting WINDFOR: actual − forecast (negative = short)
   peak_error_mwh: number | null;
+  plan_error_mwh: number | null; // following the plan: actual − planned
+  peak_plan_error_mwh: number | null;
 }
 
 export interface Decision {
@@ -107,6 +110,24 @@ export interface Accuracy {
   exceedance: Record<string, number>;
   value_of_waiting: CompareRow[];
   comparison: CompareRow[];
+}
+
+export interface Policy {
+  policy: "raw" | "P50" | "P20" | "P10" | "yours";
+  alpha: number | null;
+  pct_short: number;
+  shortfall_mwh: number;
+  excess_mwh: number;
+  extra_mwh: number;
+  cost_gbp: number | null;
+}
+
+export interface Planner {
+  alpha: number;
+  alpha_source: "confidence" | "cost_ratio" | "prices";
+  policies: Policy[];
+  n_test: number;
+  n_test_days: number;
 }
 
 export interface Point {

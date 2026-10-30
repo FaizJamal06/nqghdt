@@ -1,6 +1,6 @@
 // Typed fetch wrappers + TanStack Query hooks. Same origin: Vite proxies /api in dev.
 import { useQuery } from "@tanstack/react-query";
-import type { Accuracy, Decision, Meta, Timeseries } from "./types";
+import type { Accuracy, Decision, Meta, Planner, Timeseries } from "./types";
 import {
   type Settings,
   effectiveConfidence,
@@ -49,6 +49,15 @@ export const useAccuracy = (s: Settings) => {
   return useQuery({
     queryKey: ["accuracy", params],
     queryFn: () => get<Accuracy>("accuracy", params),
+    ...forever,
+  });
+};
+
+export const usePlanner = (s: Settings) => {
+  const params = { ...modeParams(s), confidence: effectiveConfidence(s) };
+  return useQuery({
+    queryKey: ["planner", params],
+    queryFn: () => get<Planner>("planner", params),
     ...forever,
   });
 };

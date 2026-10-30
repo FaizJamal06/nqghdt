@@ -14,6 +14,7 @@ import {
 import type { Period } from "../../api/types";
 import { C } from "../../lib/colors";
 import { gwTicks } from "../../lib/format";
+import useNarrow from "../../lib/useNarrow";
 
 interface Props {
   periods: Period[];
@@ -28,6 +29,7 @@ export default function DecisionChart({
   showActual,
   onHover,
 }: Props) {
+  const narrow = useNarrow();
   const data = periods.map((p) => ({
     t: p.local_time,
     band: [p.band_low_mw, p.band_high_mw],
@@ -56,7 +58,8 @@ export default function DecisionChart({
         onMouseLeave={() => onHover(null)}
       >
         <CartesianGrid stroke="#e2e8f0" vertical={false} />
-        <XAxis dataKey="t" tick={{ fontSize: 12 }} interval={2} />
+        {/* Every 3 h; every 6 h on phones so "00:00" labels don't overlap. */}
+        <XAxis dataKey="t" tick={{ fontSize: 12 }} interval={narrow ? 5 : 2} />
         <YAxis
           tick={{ fontSize: 12 }}
           tickFormatter={(v: number) => `${(v / 1000).toFixed(0)}`}

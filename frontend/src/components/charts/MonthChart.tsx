@@ -13,8 +13,10 @@ import {
 import type { Point } from "../../api/types";
 import { C } from "../../lib/colors";
 import { dayLabel, gw, gwTicks, ukDate, ukTime } from "../../lib/format";
+import useNarrow from "../../lib/useNarrow";
 
 export default function MonthChart({ points }: { points: Point[] }) {
+  const narrow = useNarrow();
   const data = points.map((p) => ({
     t: p.start_time,
     forecast: p.forecast_mw,
@@ -36,7 +38,7 @@ export default function MonthChart({ points }: { points: Point[] }) {
         <XAxis
           dataKey="t"
           tick={{ fontSize: 12 }}
-          interval={167}
+          interval={narrow ? 335 : 167} // a label every 7 days; 14 on phones
           tickFormatter={(t: string) => dayLabel(ukDate(t))}
         />
         <YAxis
