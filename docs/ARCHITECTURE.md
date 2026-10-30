@@ -47,7 +47,7 @@ forecasts ─► selection ─► alignment.score ─► scored frame ─► met
 | `correction.py` | raw / constant / linear / proportional post-processing; output `centre_mw`. Reads only the forecast (guarded). Fitted, like the bands, on `alignment.train_test_split`'s train rows: only actuals known at the first test decision. |
 | `bands.py` | Train residuals per cell (supports horizon × level; config uses 3 wind-level cells), fallback horizon → pooled, quantiles on demand, PICP + by-day bootstrap. |
 | `planner.py` | Newsvendor alpha (R9), planned wind = centre + residual quantile (≥ 0, R10), policy backtest in MWh (and £). |
-| `decision.py` | One delivery day: band, planned wind, flags (`low_wind`, `big_revision`), freshness from the cutoff, day and peak-block MWh totals. |
+| `decision.py` | One delivery day: band, planned wind, flags (`low_wind`; `big_revision` = abs(revision) ≥ `revision_flag_mw`, 1,000 MW), freshness from the cutoff, day and peak-block MWh totals (plus hindsight: actual, trusting WINDFOR, following the plan). |
 
 `backend/app/report.py` (`python -m app.report`) prints the January summary through the same `DataStore` the API uses.
 
@@ -88,7 +88,7 @@ React 18 + TypeScript strict + Vite, Tailwind, TanStack Query (fetch + cache), R
 | `components/SettingsBar.tsx` | Gate closure / fixed horizon, cutoff presets + custom, confidence slider or cost ratio |
 | `components/charts/DecisionChart.tsx` | 80% range (fill), expected (solid), **plan on** (accent, boldest), WINDFOR (thin grey dashed), actual only when toggled; plain-words legend |
 | `components/charts/MonthChart.tsx` | Overview: forecast at the gate vs actual, shortfalls shaded |
-| `pages/Overview.tsx` | 4 KPI tiles (with n), one January chart, 3 sentences generated from `/api/accuracy` |
-| `pages/DecisionView.tsx` | Day picker (default 21 Jan), in/out-of-sample badge, freshness, hover-driven sentence, risky hours, MWh totals, period table |
+| `pages/Overview.tsx` | 4 KPI tiles (with n), one January chart, 4 sentences generated from `/api/accuracy` (the problem) and `/api/planner` (the solution, test days) |
+| `pages/DecisionView.tsx` | Day picker (default 21 Jan), in/out-of-sample badge, freshness, hover-driven sentence ("Based on 2–20 Jan…", range from `/api/meta`), risky hours, MWh totals, period table; fewer axis labels below 640 px (`lib/useNarrow.ts`) |
 
 Dev: `npm run dev` on :5173 proxies `/api` to uvicorn on :8000. Production: `npm run build` → `frontend/dist`, served by FastAPI on the same origin.
