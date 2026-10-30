@@ -49,6 +49,7 @@ def test_day_totals(frame: Frame) -> None:
     assert (t["raw_short_mwh"], t["raw_long_mwh"]) == (20, 10)
     # following the plan: 80-90 = 10 short, 210-150 = 60 long; peak hour (16:00) only the short
     assert (t["plan_short_mwh"], t["plan_long_mwh"]) == (10, 60)
-    assert (t["peak_raw_short_mwh"], t["peak_plan_short_mwh"], t["peak_plan_long_mwh"]) == (20, 10, 0)
+    peak = (t["peak_raw_short_mwh"], t["peak_plan_short_mwh"], t["peak_plan_long_mwh"])
+    assert peak == (20, 10, 0)
     day.loc[1, "actual_mw"] = math.nan
     assert day_totals(day, (16, 19))["actual_mwh"] is None  # partial day: no fake total

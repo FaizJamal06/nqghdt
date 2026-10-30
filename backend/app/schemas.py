@@ -110,7 +110,8 @@ class DayTotals(BaseModel):
     peak_planned_mwh: float
     actual_mwh: float | None
     peak_actual_mwh: float | None
-    # Hindsight, gross like the planner: short = sum max(planned - actual, 0) x dt_h, long the reverse.
+    # Hindsight, gross like the planner: short = sum max(planned - actual, 0) x dt_h,
+    # long the reverse.
     raw_short_mwh: float | None  # trusting WINDFOR
     raw_long_mwh: float | None
     peak_raw_short_mwh: float | None
