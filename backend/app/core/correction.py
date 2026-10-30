@@ -1,9 +1,12 @@
 """Forecast correction (DECISIONS #29): post-processing of WINDFOR, not a new forecaster.
 
-Three options, fitted on the train days and scored only on the test days:
-  raw       centre = forecast
-  constant  centre = forecast + a              (a = mean train error, MW)
-  linear    centre = a + b * forecast          (least squares on train)
+Four options, fitted on the train rows and scored only on the test days:
+  raw           centre = forecast
+  constant      centre = forecast + a          (a = mean train error, MW)
+  linear        centre = a + b * forecast      (least squares on train)
+  proportional  centre = b * forecast          (least squares through the origin)
+Proportional exists because linear's intercept (a > 0) *raises* low forecasts even
+though actual / forecast < 1 at every wind level in January.
 The result is the "centre" that bands and the planner sit on (column centre_mw), so
 switching model is a config value, not a code change.
 
@@ -20,8 +23,8 @@ import pandas as pd
 
 from app.core.metrics import summary
 
-Kind = Literal["raw", "constant", "linear"]
-KINDS: tuple[Kind, ...] = ("raw", "constant", "linear")
+Kind = Literal["raw", "constant", "linear", "proportional"]
+KINDS: tuple[Kind, ...] = ("raw", "constant", "linear", "proportional")
 FEATURES = ("forecast_mw",)
 
 
@@ -50,6 +53,8 @@ def fit(train: pd.DataFrame, kind: Kind) -> Correction:
     y = train["actual_mw"]
     if kind == "constant":
         return Correction("constant", a=float((y - x).mean()))
+    if kind == "proportional":
+        return Correction("proportional", b=float((x * y).sum() / (x * x).sum()))
     b, a = np.polyfit(x, y, 1)
     return Correction("linear", a=float(a), b=float(b))
 
@@ -68,14 +73,19 @@ def with_centre(scored: pd.DataFrame, correction: Correction) -> pd.DataFrame:
     return out
 
 
-def compare(train: pd.DataFrame, test: pd.DataFrame) -> pd.DataFrame:
-    """One row per kind: fitted a, b and test-only MAE, RMSE, bias, % over-forecast."""
+def compare(train: pd.DataFrame, test: pd.DataFrame, bins: int = 5) -> pd.DataFrame:
+    """One row per kind: fitted a, b; test-only MAE, RMSE, bias, % over-forecast; and test
+    bias per forecast-level quintile, bias_q1 (calmest) ... bias_q5 (windiest), in MW."""
+    level = pd.qcut(test["forecast_mw"], bins, labels=False) + 1
     rows = {}
     for kind in KINDS:
         c = fit(train, kind)
         t = with_centre(test, c)
         s = summary(t.assign(error_mw=t["resid_mw"]))
-        rows[kind] = {"a": c.a, "b": c.b} | {
-            k: s[k] for k in ("n", "mae", "rmse", "bias", "pct_over_forecast")
-        }
+        per_bin = t["resid_mw"].groupby(level).mean()
+        rows[kind] = (
+            {"a": c.a, "b": c.b}
+            | {k: s[k] for k in ("n", "mae", "rmse", "bias", "pct_over_forecast")}
+            | {f"bias_q{q}": v for q, v in per_bin.items()}
+        )
     return pd.DataFrame.from_dict(rows, orient="index")

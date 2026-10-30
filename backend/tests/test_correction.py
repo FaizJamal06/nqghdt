@@ -12,6 +12,8 @@ def test_fits_recover_known_parameters(frame: Frame) -> None:
     assert correction.fit(df, "constant").a == pytest.approx(-900)  # mean(actual - forecast)
     lin = correction.fit(df, "linear")
     assert (lin.a, lin.b) == (pytest.approx(100), pytest.approx(0.5))
+    prop = correction.fit(frame([1000, 2000], [900, 1800]), "proportional")  # actual = 0.9 x
+    assert (prop.a, prop.b) == (0, pytest.approx(0.9))
 
 
 def test_apply_clips_at_zero(frame: Frame) -> None:
@@ -33,10 +35,12 @@ def test_guard_rejects_actual_features(frame: Frame, monkeypatch: pytest.MonkeyP
 
 
 def test_with_centre_and_compare(frame: Frame) -> None:
-    train = frame([1000, 2000, 3000], [600, 1100, 1600])
-    test = frame([4000], [2100])
+    train = frame([1000, 2000, 3000], [600, 1100, 1600])  # actual = 100 + 0.5 x forecast
+    test = frame([4000, 6000], [2100, 3100])  # same rule
     t = correction.with_centre(test, correction.fit(train, "linear"))
-    assert t["resid_mw"].item() == pytest.approx(0)
-    out = correction.compare(train, test)
-    assert out.index.tolist() == ["raw", "constant", "linear"]
-    assert out.loc["raw", "mae"] == 1900 and out.loc["linear", "mae"] == pytest.approx(0)
+    assert t["resid_mw"].tolist() == [pytest.approx(0), pytest.approx(0)]
+    out = correction.compare(train, test, bins=2)
+    assert out.index.tolist() == ["raw", "constant", "linear", "proportional"]
+    assert out.loc["raw", "mae"] == 2400 and out.loc["linear", "mae"] == pytest.approx(0)
+    # per-bin test bias, calmest first: raw misses by -1900 (4000 MW) and -2900 (6000 MW)
+    assert out.loc["raw", ["bias_q1", "bias_q2"]].tolist() == [-1900, -2900]
