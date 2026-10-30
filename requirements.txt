@@ -1,0 +1,8 @@
+# Runtime deps only (kept small for the serverless/container bundle). Dev tools: requirements-dev.txt
+fastapi==0.162.0
+uvicorn[standard]==0.54.0
+pandas==3.1.0
+numpy==2.5.4
+pydantic==2.14.2
+pydantic-settings==2.16.2
+httpx==0.28.1
