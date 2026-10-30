@@ -1,32 +1,17 @@
-"""Print the January summary from the committed snapshot (M2 "done when").
+"""Print the January summary from the committed snapshot.
 
 Run from backend/:  python -m app.report
-Pure composition of core/ functions; the M3 DataStore will reuse scored_for().
+Pure composition of core/ functions through the same DataStore the API uses.
 """
 
 import pandas as pd
 
 from app.config import Settings
 from app.core import bands, correction, metrics, planner, selection
-from app.core.alignment import score, train_test_split
+from app.core.alignment import train_test_split
 from app.core.timeutils import UK
 from app.data.loaders import Snapshot, load_snapshot
-
-
-def scored_for(
-    snap: Snapshot, s: Settings, cutoff: str | None = None, horizon_h: float | None = None
-) -> tuple[pd.DataFrame, dict[str, int]]:
-    """Scored frame + coverage for one selection mode: a D-1 cutoff or a fixed horizon."""
-    if horizon_h is None:
-        sel = selection.select_at_cutoff(snap.forecasts, cutoff or s.cutoff_default)
-    else:
-        sel = selection.select_at_horizon(snap.forecasts, horizon_h)
-    return score(sel, snap.actuals, snap.resolution_min, s.delivery_first, s.delivery_last)
-
-
-def split(scored: pd.DataFrame, s: Settings) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Train = actuals known by 20 Jan 09:00 UK, test = 21 Jan - 1 Feb (DECISIONS #38)."""
-    return train_test_split(scored, s.band_train_end, s.train_known_before)
+from app.data.store import DataStore
 
 
 def fmt(df: pd.DataFrame) -> str:
@@ -58,27 +43,26 @@ def main() -> None:
     """Print every M2 number on the real January data."""
     s = Settings()
     snap = load_snapshot(s.data_dir)
+    store = DataStore(snap, s)
     print(f"Resolution {snap.resolution_min} min. Cleaning: {snap.cleaning}\n")
     publish_schedule(snap, s)
 
-    at = {c: scored_for(snap, s, cutoff=c) for c in s.cutoff_presets}
-    main_df, cov = at[s.cutoff_default]
+    main_df, cov = store.scored(("cutoff", s.cutoff_default))
     print(f"\n== Cutoff {s.cutoff_default} ==  coverage {cov}")
     print({k: round(v, 1) for k, v in metrics.summary(main_df).items()})
     print("quantiles", {k: round(v) for k, v in metrics.quantiles(main_df).items()})
     print("exceedance %", {k: round(v, 1) for k, v in metrics.exceedance(main_df).items()})
     print("max shortfall", metrics.max_shortfall(main_df))
 
-    latest, _ = scored_for(snap, s, horizon_h=0)
+    latest, _ = store.scored(("horizon", 0.0))
     print("\nHonest vs flattering (same periods):")
     print(fmt(metrics.on_common_periods({"09:20": main_df, "latest_before_delivery": latest})))
     print("\nValue of waiting (same periods):")
-    print(fmt(metrics.on_common_periods({c: f for c, (f, _) in at.items()})))
+    print(fmt(store.value_of_waiting()))
 
     print("\nError vs lead time (horizon mode):")
-    for h in (1, 2, 4, 6, 12, 18, 24, 30, 36, int(s.horizon_max_h)):
-        sh = metrics.summary(scored_for(snap, s, horizon_h=h)[0])
-        print(f"  h={h:>2}  n={sh['n']}  MAE={sh['mae']:,.0f}  bias={sh['bias']:,.0f}")
+    curve = store.lead_time().set_index("horizon_h")
+    print(fmt(curve.loc[[1, 2, 4, 6, 12, 18, 24, 30, 36, int(s.horizon_max_h)]]))
 
     print("\nBias diagnosis: actual / forecast by forecast-level quintile (09:20):")
     print(fmt(metrics.ratio_by_level(main_df)))
@@ -89,20 +73,22 @@ def main() -> None:
         f"of which peak block (16:00-18:30 starts) {daily['peak_error_mwh'].mean():,.0f} MWh"
     )
 
-    for c, (df, _) in at.items():
-        train, test = split(df, s)
+    for c in s.cutoff_presets:
+        df = store.scored(("cutoff", c))[0]
+        train, test = train_test_split(df, s.band_train_end, s.train_known_before)
         print(f"\nCorrection, cutoff {c}: fit on {len(train)} h known by 20 Jan 09:00, TEST only")
         print(fmt(correction.compare(train, test)))
 
-    train, test = split(main_df, s)
+    # Every centre side by side (the store only fits the configured one).
+    train, test = train_test_split(main_df, s.band_train_end, s.train_known_before)
     alpha = planner.alpha_from_confidence(0.8)
     plans = {}
     for kind in correction.KINDS:
         corr = correction.fit(train, kind)
         tr, te = correction.with_centre(train, corr), correction.with_centre(test, corr)
         model = bands.fit_bands(tr, s.band_horizon_buckets, s.band_level_bins, s.band_min_cell)
-        cells = {k: len(v) for k, v in model.cells.items()}
-        print(f"\n== centre = {kind} ==  band cells (train rows): {cells}")
+        print(f"\n== centre = {kind} ==  band cells:")
+        print(fmt(bands.cell_table(model)))
         print(fmt(bands.calibration(model, tr, te)))
         plans[kind] = planner.backtest(model, te, alpha).set_index("policy").loc["yours"]
     print("\nPlanner at 80% confidence (P20 of residuals around each centre), TEST window:")
