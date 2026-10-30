@@ -16,7 +16,7 @@ export default function KpiTile({
         {label}
       </div>
       <div
-        className={`mt-1 text-2xl font-semibold tabular-nums ${warn ? "text-red-600" : "text-slate-900"}`}
+        className={`mt-1 text-2xl font-semibold ${warn ? "text-red-600" : "text-slate-900"}`}
       >
         {value}
       </div>

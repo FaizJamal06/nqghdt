@@ -6,5 +6,7 @@ export const C = {
   plan: "#7c3aed", // "plan on": accent, boldest line
   band: "#bae6fd", // 80% range: soft fill
   actual: "#0f766e", // what happened
-  short: "#dc2626", // shortfall / desk short
+  short: "#dc2626", // shortfall / desk short; also "bias" on Trust charts (negative = short)
+  mae: "#2563eb", // typical miss (MAE) beside bias; pair checked with the dataviz validator
+  muted: "#64748b", // single-series bars (histogram), nominal targets
 } as const;

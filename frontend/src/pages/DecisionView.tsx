@@ -10,6 +10,7 @@ import { Empty, ErrorState, Skeleton } from "../components/Status";
 import { C } from "../lib/colors";
 import {
   dayLabel,
+  formula,
   gw,
   mw,
   mwh,
@@ -213,9 +214,15 @@ function DayContent({
             Show what happened
           </label>
         </div>
+        {showCentre && (
+          <p className="mt-2 text-xs text-slate-500">
+            The range sits below WINDFOR because WINDFOR ran high in {trainDays}
+            : expected = {formula(d.correction)}.
+          </p>
+        )}
       </section>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <section className="rounded-lg border bg-white p-4 text-sm">
           <h2 className="mb-2 font-semibold">Risky hours</h2>
           {risky.length === 0 ? (

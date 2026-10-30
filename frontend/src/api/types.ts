@@ -104,12 +104,79 @@ export interface CompareRow {
   pct_over_forecast: number;
 }
 
+export interface BreakdownRow {
+  key: string;
+  n: number;
+  mae: number;
+  rmse: number;
+  bias: number;
+}
+
+export interface Miss {
+  start_time: string;
+  delivery_date: string;
+  sp: number;
+  forecast_mw: number;
+  actual_mw: number;
+  error_mw: number;
+  horizon_h: number;
+}
+
+export interface LevelRatio {
+  quintile: number;
+  n: number;
+  forecast_min: number;
+  forecast_max: number;
+  mean_forecast: number;
+  mean_actual: number;
+  ratio: number;
+  bias: number;
+}
+
 export interface Accuracy {
   summary: Summary;
   quantiles: Record<string, number>;
   exceedance: Record<string, number>;
+  breakdowns: { by_hour: BreakdownRow[]; by_level: BreakdownRow[] };
+  histogram: { lo_mw: number; hi_mw: number; count: number }[];
+  worst_misses: Miss[];
   value_of_waiting: CompareRow[];
   comparison: CompareRow[];
+  lead_time: { horizon_h: number; n: number; mae: number; bias: number }[];
+  bias_by_level: LevelRatio[];
+}
+
+export interface Calibration {
+  levels: {
+    nominal: number;
+    train_picp: number;
+    test_picp: number;
+    test_lo: number;
+    test_hi: number;
+    n_train: number;
+    n_test: number;
+  }[];
+  cells: {
+    level_bin: number;
+    lo_mw: number | null;
+    hi_mw: number | null;
+    n: number;
+    p10: number;
+    p90: number;
+    width: number;
+  }[];
+  correction: CorrectionInfo;
+  corrections: {
+    kind: CorrectionInfo["kind"];
+    a: number;
+    b: number;
+    n: number;
+    mae: number;
+    rmse: number;
+    bias: number;
+    pct_over_forecast: number;
+    bias_by_quintile: number[];
+  }[];
 }
 
 export interface Policy {

@@ -1,6 +1,13 @@
 // Typed fetch wrappers + TanStack Query hooks. Same origin: Vite proxies /api in dev.
 import { useQuery } from "@tanstack/react-query";
-import type { Accuracy, Decision, Meta, Planner, Timeseries } from "./types";
+import type {
+  Accuracy,
+  Calibration,
+  Decision,
+  Meta,
+  Planner,
+  Timeseries,
+} from "./types";
 import {
   type Settings,
   effectiveConfidence,
@@ -53,8 +60,26 @@ export const useAccuracy = (s: Settings) => {
   });
 };
 
-export const usePlanner = (s: Settings) => {
-  const params = { ...modeParams(s), confidence: effectiveConfidence(s) };
+export const useCalibration = (s: Settings) => {
+  const params = modeParams(s);
+  return useQuery({
+    queryKey: ["calibration", params],
+    queryFn: () => get<Calibration>("calibration", params),
+    ...forever,
+  });
+};
+
+/** Optional £/MWh prices (Buffer Planner): when given, they set alpha (DECISIONS #6). */
+export const usePlanner = (
+  s: Settings,
+  prices?: { short: number; long: number },
+) => {
+  const params = {
+    ...modeParams(s),
+    ...(prices
+      ? { price_short: prices.short, price_long: prices.long }
+      : { confidence: effectiveConfidence(s) }),
+  };
   return useQuery({
     queryKey: ["planner", params],
     queryFn: () => get<Planner>("planner", params),
