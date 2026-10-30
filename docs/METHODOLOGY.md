@@ -79,18 +79,32 @@ Linear's intercept *raises* every forecast below ~6,000 MW, although actual ÷ f
 
 | Centre | Hours short | Shortfall MWh | Excess MWh | Extra MWh bought vs raw forecast |
 |---|---|---|---|---|
-| Raw | 21% | 115,110 | 477,795 | 1,058,095 |
-| Linear | 20% | 110,514 | 412,142 | 997,039 |
-| Proportional | 20% | 112,003 | 432,130 | 1,015,537 |
+| Raw | 21% | 107,985 | 416,371 | 1,003,797 |
+| Linear | 23% | 106,754 | 370,598 | 959,254 |
+| **Proportional** (default) | 22% | 108,191 | 388,741 | 975,961 |
 
-Only a little. The planner already plans at a quantile of past *residuals*, so it absorbs most of the bias even around the raw forecast. A better centre mainly cuts the excess (10–14% less energy bought that turned out unneeded), with about the same shortfall.
+Only a little. The planner already plans at a quantile of past *residuals*, so it absorbs most of the bias even around the raw forecast. The proportional centre leaves the share of hours short and the shortfall essentially unchanged and cuts unneeded buying (excess) by about 7%. It mainly improves the centre line.
 
-**Band coverage on the test window** (by-day bootstrap, 5th–95th percentile):
+## Uncertainty bands
 
-| Nominal | Raw | Linear | Proportional |
+**Cells.** Residuals (actual − centre) are grouped by forecast level: terciles of the train forecasts, edges **8,868 MW and 13,650 MW**, 147 train hours per cell. The planned split by horizon (< 27.5 h vs ≥ 27.5 h) was dropped. Its P10–P90 widths showed no consistent pattern (shorter horizon *narrower* for low wind, 3,668 vs 4,053 MW, but *wider* for mid, 3,144 vs 2,897, and high, 4,652 vs 4,145), so splitting only halved each cell's data. Both modes now use the same 3 level cells.
+
+| Cell (proportional centre, train) | P10 (MW) | P90 (MW) | P10–P90 width (MW) |
 |---|---|---|---|
-| 50% | 67% (54–80) | 63% (51–74) | 66% (52–77) |
-| 80% | 82% (69–93) | 76% (63–87) | 79% (66–90) |
-| 90% | 83% (70–94) | 83% (70–94) | 83% (71–94) |
+| Low wind (< 8,868 MW) | −1,376 | +2,551 | 3,928 |
+| Mid wind | −678 | +2,179 | 2,857 |
+| High wind (> 13,650 MW) | −2,935 | +1,644 | 4,578 |
 
-**Limitations.** The parameters come from 19 days. The model was chosen *by* these test numbers (4 candidates), so they are slightly optimistic. A live product would refit on a rolling window.
+The mid-wind cell is narrower than low-wind, but a by-day bootstrap of the width difference spans −621 to +2,327 MW (5th–95th percentile), which includes zero. With 19 days it can't be told apart from noise.
+
+**Coverage on the test window** (by-day bootstrap, 5th–95th percentile):
+
+| Nominal | Raw | Linear | Proportional (default) |
+|---|---|---|---|
+| 50% | 65% (52–76) | 58% (47–68) | 63% (51–74) |
+| 80% | 81% (67–92) | 77% (63–90) | 80% (66–92) |
+| 90% | 90% (76–99) | 87% (73–97) | 89% (74–98) |
+
+The 50% band over-covers on the test window (63%, range 51–74%), while the 80% band holds (80%). The Decision View shows the 80% band by default.
+
+**Limitations.** The parameters come from 19 days. The model was chosen *by* these test numbers (4 candidates), so they are slightly optimistic. A live product would refit on a rolling window. Binned bands jump at cell edges; smoothing between cells is on the polish list.

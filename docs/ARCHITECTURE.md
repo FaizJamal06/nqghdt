@@ -44,7 +44,7 @@ forecasts ─► selection ─► alignment.score ─► scored frame ─► met
 | `alignment.py` | Hourly mean of the two FUELHH half-hours, join, `error_mw = actual − forecast` (R7), coverage counts (R11). |
 | `metrics.py` | MAE/RMSE/bias, quantiles, exceedance, breakdowns, worst misses, same-period comparisons, actual ÷ forecast by level. |
 | `correction.py` | raw / constant / linear / proportional post-processing; output `centre_mw`. Reads only the forecast (guarded). Fitted, like the bands, on `alignment.train_test_split`'s train rows: only actuals known at the first test decision. |
-| `bands.py` | Train residuals per horizon × level cell (fallback horizon → pooled), quantiles on demand, PICP + by-day bootstrap. |
+| `bands.py` | Train residuals per cell (supports horizon × level; config uses 3 wind-level cells), fallback horizon → pooled, quantiles on demand, PICP + by-day bootstrap. |
 | `planner.py` | Newsvendor alpha (R9), planned wind = centre + residual quantile (≥ 0, R10), policy backtest in MWh (and £). |
 
 `backend/app/report.py` (`python -m app.report`) composes these and prints the January summary. `scored_for()` there is what the M3 `DataStore` will cache.
