@@ -9,8 +9,8 @@ Default hyperparameters, no tuning: tuning on the test window would make the tes
 training set. Days, not hours, are the independent units, so the MAE difference also
 gets a by-day bootstrap range (as for band coverage, DECISIONS #4).
 
-scikit-learn is deliberately not in requirements*.txt. From the repo root:
-    .venv/Scripts/pip install scikit-learn==1.9.1
+scikit-learn is kept out of the app: it is only in requirements-offline.txt. From the repo root:
+    .venv/Scripts/pip install -r requirements-offline.txt
     .venv/Scripts/python scripts/model_check.py
 """
 
@@ -102,6 +102,31 @@ def main() -> None:
             f"  forecast range: train {tr.min():,.0f}-{tr.max():,.0f} MW, "
             f"test {te.min():,.0f}-{te.max():,.0f} MW"
         )
+        # Trees predict a constant beyond the last split, so if extrapolation were the
+        # problem, GBM's bias would concentrate on test hours above the train range.
+        for label, mask in (
+            (f"> train P90 ({tr.quantile(0.9):,.0f} MW)", te > tr.quantile(0.9)),
+            (f"> train max ({tr.max():,.0f} MW)", te > tr.max()),
+            ("<= train P90", te <= tr.quantile(0.9)),
+        ):
+            if not mask.any():
+                print(f"  test hours {label}: 0")
+                continue
+            bias = {n: (test["actual_mw"] - c)[mask].mean() for n, c in centres.items()}
+            print(
+                f"  test hours {label}: {int(mask.sum())}; bias (actual - centre) "
+                + ", ".join(f"{n} {b:+,.0f}" for n, b in bias.items())
+            )
+        # What the trees learned at the top: how many days the windy train hours come from,
+        # and actual / forecast there vs on the windy test hours.
+        for name, df in (("train", train), ("test", test)):
+            top = df[df["forecast_mw"] > tr.quantile(0.9)]
+            ratio = top["actual_mw"].sum() / top["forecast_mw"].sum()
+            days = top["delivery_date"].value_counts()
+            print(
+                f"  {name} hours > train P90: {len(top)} on {len(days)} days "
+                f"(most: {days.index[0]} with {days.iloc[0]}); actual / forecast {ratio:.2f}"
+            )
 
 
 if __name__ == "__main__":

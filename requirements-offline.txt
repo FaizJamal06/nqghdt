@@ -1,0 +1,3 @@
+# Offline analysis only (scripts/model_check.py). Not used by the app, CI or Docker.
+-r requirements.txt
+scikit-learn==1.9.1
