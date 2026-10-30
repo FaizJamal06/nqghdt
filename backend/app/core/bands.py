@@ -68,6 +68,29 @@ def fit_bands(
     )
 
 
+def cell_table(model: BandModel) -> pd.DataFrame:
+    """One row per fitted cell: train rows, P10, P90 and P10-P90 width of residuals (MW).
+
+    lo_mw / hi_mw are the cell's forecast-level range (None = open-ended).
+    """
+    edges = [None, *model.level_edges.tolist(), None]
+    rows = [
+        {
+            "horizon_bucket": h,
+            "level_bin": lv,
+            "lo_mw": edges[lv],
+            "hi_mw": edges[lv + 1],
+            "n": len(errs),
+            "p10": float(np.quantile(errs, 0.1)),
+            "p90": float(np.quantile(errs, 0.9)),
+        }
+        for (h, lv), errs in sorted(model.cells.items())
+    ]
+    out = pd.DataFrame(rows)
+    out["width"] = out["p90"] - out["p10"]
+    return out
+
+
 def residual_quantile(model: BandModel, df: pd.DataFrame, q: float) -> tuple[pd.Series, pd.Series]:
     """q-quantile of train residuals (MW) for each row's cell, and which level was used.
 

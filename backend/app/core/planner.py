@@ -15,7 +15,7 @@ def alpha_from_confidence(confidence: float) -> float:
     """alpha = 1 - confidence: "80% sure wind is at least this" -> the 20th percentile."""
     if not 0 < confidence < 1:
         raise ValueError("confidence must be between 0 and 1")
-    return 1 - confidence
+    return round(1 - confidence, 10)  # 0.2, not 0.19999999999999996
 
 
 def alpha_from_costs(c_short: float, c_long: float) -> float:

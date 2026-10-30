@@ -82,6 +82,15 @@ def breakdown(scored: pd.DataFrame, by: str) -> pd.DataFrame:
     ).reset_index()
 
 
+def histogram(scored: pd.DataFrame, bin_mw: int = 500) -> pd.DataFrame:
+    """Error histogram: count of periods per bin_mw-wide bin [lo, hi), edges at multiples."""
+    e = scored["error_mw"]
+    lo = np.floor(e.min() / bin_mw) * bin_mw
+    hi = np.floor(e.max() / bin_mw) * bin_mw + bin_mw
+    counts, edges = np.histogram(e, bins=np.arange(lo, hi + bin_mw / 2, bin_mw))
+    return pd.DataFrame({"lo_mw": edges[:-1], "hi_mw": edges[1:], "count": counts})
+
+
 def worst_misses(scored: pd.DataFrame, k: int = 10) -> pd.DataFrame:
     """The k most negative errors (biggest shortfalls), worst first."""
     cols = ["startTime", "delivery_date", "sp", "forecast_mw", "actual_mw", "error_mw", "horizon_h"]
