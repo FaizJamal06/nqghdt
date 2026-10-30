@@ -5,19 +5,26 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 
-from app.api.routes import meta
+from app.api.routes import accuracy, calibration, decision, meta, planner, timeseries
 from app.config import Settings
+from app.data.loaders import load_snapshot
+from app.data.store import DataStore
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     """Build the app. Tests pass their own Settings (e.g. a temp static_dir).
 
+    The snapshot is loaded and the default mode precomputed here, once per process,
+    so the first request is already warm.
     No CORS middleware: in dev Vite proxies /api, in production the API and the
     React build share one origin, so the browser never makes a cross-origin call.
     """
     settings = settings or Settings()
     app = FastAPI(title="WindDesk API", version="0.1.0")
-    app.include_router(meta.router, prefix="/api")
+    app.state.store = DataStore(load_snapshot(settings.data_dir), settings)
+    app.state.store.warm()
+    for module in (meta, decision, accuracy, calibration, planner, timeseries):
+        app.include_router(module.router, prefix="/api")
 
     if settings.static_dir.is_dir():
         _mount_spa(app, settings.static_dir.resolve())
