@@ -59,10 +59,15 @@ export interface DayTotals {
   peak_planned_mwh: number;
   actual_mwh: number | null;
   peak_actual_mwh: number | null;
-  error_mwh: number | null; // trusting WINDFOR: actual − forecast (negative = short)
-  peak_error_mwh: number | null;
-  plan_error_mwh: number | null; // following the plan: actual − planned
-  peak_plan_error_mwh: number | null;
+  // Hindsight, gross like the planner: short = Σ max(planned − actual, 0) × dt_h, long the reverse.
+  raw_short_mwh: number | null; // trusting WINDFOR
+  raw_long_mwh: number | null;
+  peak_raw_short_mwh: number | null;
+  peak_raw_long_mwh: number | null;
+  plan_short_mwh: number | null; // following the plan
+  plan_long_mwh: number | null;
+  peak_plan_short_mwh: number | null;
+  peak_plan_long_mwh: number | null;
 }
 
 export interface Decision {

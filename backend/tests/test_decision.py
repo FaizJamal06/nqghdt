@@ -44,8 +44,11 @@ def test_day_totals(frame: Frame) -> None:
     day["planned_mw"], day["hour_uk"] = [90, 150], [16, 20]
     t = day_totals(day, (16, 19))
     assert (t["forecast_mwh"], t["planned_mwh"], t["extra_mwh"]) == (300, 240, 60)
-    assert (t["error_mwh"], t["peak_error_mwh"], t["peak_planned_mwh"]) == (-10, -20, 90)
-    # following the plan: (80-90) + (210-150) = +50 long; peak hour only: -10 short
-    assert (t["plan_error_mwh"], t["peak_plan_error_mwh"], t["peak_actual_mwh"]) == (50, -10, 80)
+    assert (t["peak_planned_mwh"], t["peak_actual_mwh"]) == (90, 80)
+    # gross, not net: trusting WINDFOR errors -20, +10 -> 20 short AND 10 long (net -10 hides both)
+    assert (t["raw_short_mwh"], t["raw_long_mwh"]) == (20, 10)
+    # following the plan: 80-90 = 10 short, 210-150 = 60 long; peak hour (16:00) only the short
+    assert (t["plan_short_mwh"], t["plan_long_mwh"]) == (10, 60)
+    assert (t["peak_raw_short_mwh"], t["peak_plan_short_mwh"], t["peak_plan_long_mwh"]) == (20, 10, 0)
     day.loc[1, "actual_mw"] = math.nan
     assert day_totals(day, (16, 19))["actual_mwh"] is None  # partial day: no fake total

@@ -47,7 +47,7 @@ forecasts ─► selection ─► alignment.score ─► scored frame ─► met
 | `correction.py` | raw / constant / linear / proportional post-processing; output `centre_mw`. Reads only the forecast (guarded). Fitted, like the bands, on `alignment.train_test_split`'s train rows: only actuals known at the first test decision. |
 | `bands.py` | Train residuals per cell (supports horizon × level; config uses 3 wind-level cells), fallback horizon → pooled, quantiles on demand, PICP + by-day bootstrap. |
 | `planner.py` | Newsvendor alpha (R9), planned wind = centre + residual quantile (≥ 0, R10), policy backtest in MWh (and £). |
-| `decision.py` | One delivery day: band, planned wind, flags (`low_wind`; `big_revision` = abs(revision) ≥ `revision_flag_mw`, 1,000 MW), freshness from the cutoff, day and peak-block MWh totals (plus hindsight: actual, trusting WINDFOR, following the plan). |
+| `decision.py` | One delivery day: band, planned wind, flags (`low_wind`; `big_revision` = abs(revision) ≥ `revision_flag_mw`, 1,000 MW), freshness from the cutoff, day and peak-block MWh totals (plus hindsight: actual, and gross MWh short and long for trusting WINDFOR and for following the plan). |
 
 `backend/app/report.py` (`python -m app.report`) prints the January summary through the same `DataStore` the API uses.
 

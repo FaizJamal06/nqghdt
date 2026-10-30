@@ -54,10 +54,11 @@ def freshness(
 def day_totals(periods: pd.DataFrame, peak_hours: tuple[int, int]) -> dict[str, float | None]:
     """Energy totals for the day in MWh (MW x dt_h), plus the peak block.
 
-    extra_mwh = energy bought beyond trusting the raw forecast. Hindsight totals (net,
-    actual minus what you planned on; negative = short, R7): error_mwh = trusting WINDFOR,
-    plan_error_mwh = following the plan. They are None unless every period has an actual
-    (a partial sum would mislead).
+    extra_mwh = energy bought beyond trusting the raw forecast. Hindsight totals are gross,
+    like the planner backtest (a net sum lets long hours hide short ones): *_short_mwh =
+    sum of max(planned - actual, 0) x dt_h, *_long_mwh = sum of max(actual - planned, 0) x dt_h,
+    for raw_ = trusting WINDFOR and plan_ = following the plan. They are None unless every
+    period has an actual (a partial sum would mislead).
     """
     dt = periods["dt_h"]
     peak = periods["hour_uk"].between(peak_hours[0], peak_hours[1] - 1)
@@ -70,18 +71,22 @@ def day_totals(periods: pd.DataFrame, peak_hours: tuple[int, int]) -> dict[str, 
     def hindsight(col: str, mask: pd.Series | None = None) -> float | None:
         return mwh(col, mask) if has_actual else None
 
-    periods = periods.assign(plan_error_mw=periods["actual_mw"] - periods["planned_mw"])
-    return {
+    plan_gap = periods["actual_mw"] - periods["planned_mw"]
+    periods = periods.assign(
+        raw_short_mw=(-periods["error_mw"]).clip(lower=0),
+        raw_long_mw=periods["error_mw"].clip(lower=0),
+        plan_short_mw=(-plan_gap).clip(lower=0),
+        plan_long_mw=plan_gap.clip(lower=0),
+    )
+    out: dict[str, float | None] = {
         "forecast_mwh": mwh("forecast_mw"),
         "centre_mwh": mwh("centre_mw"),
         "planned_mwh": mwh("planned_mw"),
         "extra_mwh": mwh("forecast_mw") - mwh("planned_mw"),
         "peak_forecast_mwh": mwh("forecast_mw", peak),
         "peak_planned_mwh": mwh("planned_mw", peak),
-        "actual_mwh": hindsight("actual_mw"),
-        "peak_actual_mwh": hindsight("actual_mw", peak),
-        "error_mwh": hindsight("error_mw"),
-        "peak_error_mwh": hindsight("error_mw", peak),
-        "plan_error_mwh": hindsight("plan_error_mw"),
-        "peak_plan_error_mwh": hindsight("plan_error_mw", peak),
     }
+    for name in ("actual", "raw_short", "raw_long", "plan_short", "plan_long"):
+        out[f"{name}_mwh"] = hindsight(f"{name}_mw")
+        out[f"peak_{name}_mwh"] = hindsight(f"{name}_mw", peak)
+    return out

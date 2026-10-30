@@ -14,7 +14,6 @@ import {
   gw,
   mw,
   mwh,
-  shortLong,
   signedMw,
   splitLabels,
   ukDate,
@@ -298,14 +297,24 @@ function Totals({ d, showActual }: { d: Decision; showActual: boolean }) {
             <>
               {row("Actual", mwh(t.actual_mwh), mwh(t.peak_actual_mwh!))}
               {row(
-                "If you'd trusted WINDFOR",
-                shortLong(t.error_mwh!),
-                shortLong(t.peak_error_mwh!),
+                "Trusting WINDFOR: short",
+                mwh(t.raw_short_mwh!),
+                mwh(t.peak_raw_short_mwh!),
               )}
               {row(
-                "Following the plan",
-                shortLong(t.plan_error_mwh!),
-                shortLong(t.peak_plan_error_mwh!),
+                "Trusting WINDFOR: long",
+                mwh(t.raw_long_mwh!),
+                mwh(t.peak_raw_long_mwh!),
+              )}
+              {row(
+                "Following the plan: short",
+                mwh(t.plan_short_mwh!),
+                mwh(t.peak_plan_short_mwh!),
+              )}
+              {row(
+                "Following the plan: long",
+                mwh(t.plan_long_mwh!),
+                mwh(t.peak_plan_long_mwh!),
               )}
             </>
           )}
@@ -318,7 +327,8 @@ function Totals({ d, showActual }: { d: Decision; showActual: boolean }) {
       )}
       {showActual && t.actual_mwh !== null && (
         <p className="mt-2 text-xs text-slate-500">
-          Net over the hours: actual minus what you planned on.
+          Short and long are added up hour by hour, not netted, so long hours
+          can't hide short ones (as in the Buffer Planner).
         </p>
       )}
     </section>

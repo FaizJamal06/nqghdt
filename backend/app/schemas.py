@@ -110,10 +110,15 @@ class DayTotals(BaseModel):
     peak_planned_mwh: float
     actual_mwh: float | None
     peak_actual_mwh: float | None
-    error_mwh: float | None  # trusting WINDFOR: actual - forecast (negative = short)
-    peak_error_mwh: float | None
-    plan_error_mwh: float | None  # following the plan: actual - planned
-    peak_plan_error_mwh: float | None
+    # Hindsight, gross like the planner: short = sum max(planned - actual, 0) x dt_h, long the reverse.
+    raw_short_mwh: float | None  # trusting WINDFOR
+    raw_long_mwh: float | None
+    peak_raw_short_mwh: float | None
+    peak_raw_long_mwh: float | None
+    plan_short_mwh: float | None  # following the plan
+    plan_long_mwh: float | None
+    peak_plan_short_mwh: float | None
+    peak_plan_long_mwh: float | None
 
 
 class DayCoverage(BaseModel):

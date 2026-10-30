@@ -83,9 +83,6 @@ export function formula(c: Pick<CorrectionInfo, "kind" | "a" | "b">) {
 }
 
 /** Net energy with its direction: "1,234 MWh short" (negative, R7) or "567 MWh long". */
-export const shortLong = (v: number) =>
-  v < 0 ? `${mwh(-v)} short` : `${mwh(v)} long`;
-
 /** UK calendar date "2026-01-20" of a UTC ISO string. */
 export const ukDate = (iso: string) =>
   new Date(iso).toLocaleDateString("en-CA", { timeZone: UK });
