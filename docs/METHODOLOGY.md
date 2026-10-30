@@ -53,12 +53,44 @@ The ratio is below 1 at every level, which is **consistent with a general scalin
 
 ## Forecast correction (post-processing)
 
-Three centres, fitted on delivery days 2–20 Jan and scored **only** on 21 Jan – 1 Feb (288 hours). The input is the forecast alone; no actual is used as an input.
+Four candidate centres. The input is the forecast alone; no actual is ever an input.
 
-| 09:20 cutoff | Fitted on 2–20 Jan | Test MAE | Test RMSE | Test bias | Hours over-forecast |
+- **Fit (corrections *and* band quantiles):** only hours whose actual was known at the first test decision, i.e. starting before **20 Jan 09:00 UK** (that decision is made at 20 Jan 09:20). That is 441 hours, 2 Jan 00:00 – 20 Jan 08:00.
+- **Test:** delivery days 21 Jan – 1 Feb (288 hours). Hours 20 Jan 09:00–23:00 are in neither set.
+
+| 09:20 cutoff | Fitted | Test MAE | Test RMSE | Test bias | Hours over-forecast | Test bias, calmest fifth |
+|---|---|---|---|---|---|---|
+| Raw WINDFOR | — | 2,417 | 2,790 | −2,415 | 100% | −1,937 |
+| Constant | forecast − 1,345 MW | 1,322 | 1,760 | −1,070 | 74% | −593 |
+| Linear | 1,460 + 0.756 × forecast | 1,153 | 1,597 | −186 | 50% | −1,300 |
+| **Proportional** | **0.865 × forecast** | **1,032** | **1,465** | −370 | 57% | −775 |
+
+Test bias by forecast-level fifth, calmest first (MW):
+
+| | 1 | 2 | 3 | 4 | 5 |
 |---|---|---|---|---|---|
-| Raw WINDFOR | — | 2,417 | 2,790 | −2,415 | 100% |
-| Constant | forecast − 1,327 MW | 1,331 | 1,771 | −1,088 | 74% |
-| Linear | 1,387 + 0.768 × forecast | 1,132 | 1,590 | −288 | 54% |
+| Raw | −1,937 | −2,938 | −1,870 | −2,164 | −3,168 |
+| Linear | −1,300 | −1,326 | +732 | +781 | +180 |
+| Proportional | −775 | −1,236 | +381 | +277 | −503 |
 
-Linear is best at all three cutoff presets. A constant shift changes the centre line but not the bands or the planner: shifting the centre by *a* shifts the residuals by −*a*, so the two cancel. Limitation: the parameters come from 19 days, and the model is frozen at the end of 20 Jan, so the first test decision (made 20 Jan 09:20) uses a fit that includes about 15 hours it couldn't yet have seen.
+Linear's intercept *raises* every forecast below ~6,000 MW, although actual ÷ forecast is below 1 at every level, so it leaves the calm hours most over-forecast. Proportional scales every hour down and has the lowest test MAE at all three cutoffs (09:50: 997 vs 1,106; 15:30: 770 vs 920). A constant shift changes the centre line but not the bands or the planner: shifting the centre by *a* shifts the residuals by −*a*, so the two cancel.
+
+**Does the correction improve the decision?** Planner at 80% confidence, test window:
+
+| Centre | Hours short | Shortfall MWh | Excess MWh | Extra MWh bought vs raw forecast |
+|---|---|---|---|---|
+| Raw | 21% | 115,110 | 477,795 | 1,058,095 |
+| Linear | 20% | 110,514 | 412,142 | 997,039 |
+| Proportional | 20% | 112,003 | 432,130 | 1,015,537 |
+
+Only a little. The planner already plans at a quantile of past *residuals*, so it absorbs most of the bias even around the raw forecast. A better centre mainly cuts the excess (10–14% less energy bought that turned out unneeded), with about the same shortfall.
+
+**Band coverage on the test window** (by-day bootstrap, 5th–95th percentile):
+
+| Nominal | Raw | Linear | Proportional |
+|---|---|---|---|
+| 50% | 67% (54–80) | 63% (51–74) | 66% (52–77) |
+| 80% | 82% (69–93) | 76% (63–87) | 79% (66–90) |
+| 90% | 83% (70–94) | 83% (70–94) | 83% (71–94) |
+
+**Limitations.** The parameters come from 19 days. The model was chosen *by* these test numbers (4 candidates), so they are slightly optimistic. A live product would refit on a rolling window.
