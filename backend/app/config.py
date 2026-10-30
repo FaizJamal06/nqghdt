@@ -30,8 +30,9 @@ class Settings(BaseSettings):
     # i.e. periods starting before band_train_end at this UK time.
     train_known_before: str = "09:00"
     band_central_default: float = 0.8  # Decision View band = P10-P90 (DECISIONS #3)
-    # DECISIONS #21: cells = horizon buckets x forecast-level bins; horizon mode uses 1 bucket.
-    band_horizon_buckets: int = 2
+    # DECISIONS #21, #42: cells = horizon buckets x forecast-level bins. The 2-bucket horizon
+    # split showed no consistent width difference, so both modes use wind level only.
+    band_horizon_buckets: int = 1
     band_level_bins: int = 3
     band_min_cell: int = 40  # fewer train rows -> fall back to horizon bucket, then pooled
     # DECISIONS #22: every January period has a forecast up to 40 h ahead (589/744 at 48 h).
@@ -39,7 +40,7 @@ class Settings(BaseSettings):
     # DECISIONS #5: peak block = periods starting 16:00-18:30 UK local.
     peak_hours: tuple[int, int] = (16, 19)
     # DECISIONS #29: the centre bands and planner sit on. Fitted on train days only.
-    # proportional won test MAE at all three cutoffs (DECISIONS #39); Faiz to confirm.
+    # proportional won test MAE at all three cutoffs (DECISIONS #39, confirmed).
     correction: Literal["raw", "constant", "linear", "proportional"] = "proportional"
 
     # PRD §4 fetch windows, padded so every preset cutoff, horizon mode and the

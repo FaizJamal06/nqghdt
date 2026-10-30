@@ -1,8 +1,8 @@
 """Uncertainty bands from past errors (PRD §5.5-5.6, DECISIONS #3, #4, #21).
 
 Empirical and conditional: store the train-window residuals (actual - centre, MW) per
-cell and read any quantile on demand. Cells = horizon bucket x forecast-level bin
-(2 x 3 in cutoff mode; 1 x 3 in horizon mode, where the horizon is ~constant).
+cell and read any quantile on demand. Cells = horizon bucket x forecast-level bin;
+config uses 1 x 3 (wind level only) in both modes, see DECISIONS #42.
 Edges are train-set quantiles. A cell with < min_cell train rows falls back to its
 horizon bucket, then to all train rows; the level used is recorded.
 Input frames come from correction.with_centre (need horizon_h, forecast_mw,
