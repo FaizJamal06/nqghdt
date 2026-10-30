@@ -8,7 +8,7 @@ import pandas as pd
 
 from app.config import Settings
 from app.core import bands, correction, metrics, planner, selection
-from app.core.alignment import score
+from app.core.alignment import score, train_test_split
 from app.core.timeutils import UK
 from app.data.loaders import Snapshot, load_snapshot
 
@@ -25,9 +25,8 @@ def scored_for(
 
 
 def split(scored: pd.DataFrame, s: Settings) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Train = delivery days up to band_train_end, test = the rest (PRD §5.5)."""
-    is_train = scored["delivery_date"] <= s.band_train_end
-    return scored[is_train], scored[~is_train]
+    """Train = actuals known by 20 Jan 09:00 UK, test = 21 Jan - 1 Feb (DECISIONS #38)."""
+    return train_test_split(scored, s.band_train_end, s.train_known_before)
 
 
 def fmt(df: pd.DataFrame) -> str:
@@ -92,20 +91,22 @@ def main() -> None:
 
     for c, (df, _) in at.items():
         train, test = split(df, s)
-        print(f"\nCorrection, cutoff {c}: fit 2-20 Jan, TEST 21 Jan-1 Feb only")
+        print(f"\nCorrection, cutoff {c}: fit on {len(train)} h known by 20 Jan 09:00, TEST only")
         print(fmt(correction.compare(train, test)))
 
     train, test = split(main_df, s)
+    alpha = planner.alpha_from_confidence(0.8)
+    plans = {}
     for kind in correction.KINDS:
         corr = correction.fit(train, kind)
         tr, te = correction.with_centre(train, corr), correction.with_centre(test, corr)
         model = bands.fit_bands(tr, s.band_horizon_buckets, s.band_level_bins, s.band_min_cell)
-        print(
-            f"\n== centre = {kind} ==  band cells (train rows): "
-            f"{ {k: len(v) for k, v in model.cells.items()} }"
-        )
+        cells = {k: len(v) for k, v in model.cells.items()}
+        print(f"\n== centre = {kind} ==  band cells (train rows): {cells}")
         print(fmt(bands.calibration(model, tr, te)))
-        print(fmt(planner.backtest(model, te, planner.alpha_from_confidence(0.8))))
+        plans[kind] = planner.backtest(model, te, alpha).set_index("policy").loc["yours"]
+    print("\nPlanner at 80% confidence (P20 of residuals around each centre), TEST window:")
+    print(fmt(pd.DataFrame(plans).T.drop(columns="alpha")))
 
 
 if __name__ == "__main__":

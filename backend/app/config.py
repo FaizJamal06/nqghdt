@@ -26,6 +26,10 @@ class Settings(BaseSettings):
 
     # PRD §5.5: bands fitted on delivery days up to and including this date, tested after it.
     band_train_end: date = date(2026, 1, 20)
+    # DECISIONS #38: fit only on actuals known at the first test decision (20 Jan 09:20),
+    # i.e. periods starting before band_train_end at this UK time.
+    train_known_before: str = "09:00"
+    band_central_default: float = 0.8  # Decision View band = P10-P90 (DECISIONS #3)
     # DECISIONS #21: cells = horizon buckets x forecast-level bins; horizon mode uses 1 bucket.
     band_horizon_buckets: int = 2
     band_level_bins: int = 3
@@ -35,8 +39,8 @@ class Settings(BaseSettings):
     # DECISIONS #5: peak block = periods starting 16:00-18:30 UK local.
     peak_hours: tuple[int, int] = (16, 19)
     # DECISIONS #29: the centre bands and planner sit on. Fitted on train days only.
-    # linear won test MAE at all three cutoffs (M2 report); Faiz to confirm.
-    correction: Literal["raw", "constant", "linear"] = "linear"
+    # proportional won test MAE at all three cutoffs (DECISIONS #39); Faiz to confirm.
+    correction: Literal["raw", "constant", "linear", "proportional"] = "proportional"
 
     # PRD §4 fetch windows, padded so every preset cutoff, horizon mode and the
     # "latest before delivery" comparison have data at both edges of the window.
