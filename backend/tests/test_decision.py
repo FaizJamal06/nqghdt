@@ -20,12 +20,9 @@ def test_flags_and_planned(frame: Frame) -> None:
         ["low_wind"],
         ["low_wind"],
         ["low_wind", "big_revision"],  # |500| is above the day's 80th percentile
-        ["wide_band"],  # high-wind cell is wider; no previous publish -> no revision flag
+        [],  # high wind; no previous publish -> never a big revision
     ]
     assert out["planned_mw"].iloc[0] == 100  # median residual of the low cell is 0
-    # Ties: if every hour has the same width, none is "wider than the 80th percentile".
-    same = day_periods(day.iloc[:4], model, central=0.8, alpha=0.5)
-    assert not any("wide_band" in f for f in same["flags"])
 
 
 def test_freshness_and_staleness() -> None:

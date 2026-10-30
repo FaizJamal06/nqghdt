@@ -98,7 +98,7 @@ class Period(BaseModel):
     revision_mw: float | None
     actual_mw: float | None  # hindsight: hidden in the UI by default (R3)
     error_mw: float | None
-    flags: list[Literal["low_wind", "wide_band", "big_revision"]]
+    flags: list[Literal["low_wind", "big_revision"]]
 
 
 class DayTotals(BaseModel):

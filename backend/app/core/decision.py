@@ -16,18 +16,17 @@ def day_periods(
 ) -> pd.DataFrame:
     """Add band_low_mw / band_high_mw (central band), planned_mw (alpha) and flags.
 
-    Flags (PRD §8): low_wind = forecast in the lowest level cell; wide_band = band width
-    above the day's 80th percentile; big_revision = |revision| above the day's 80th
-    percentile. Strict ">" so a day where every value is equal flags nothing.
+    Flags (PRD §8): low_wind = forecast in the lowest level cell; big_revision =
+    |revision| above the day's 80th percentile (strict ">", so ties flag nothing).
+    No wide_band flag: with 3 level cells band width has only 3 values, so it just
+    repeated "high wind". Re-add if band smoothing is built (DECISIONS #44, #52).
     """
     out = frame.join(band(model, frame, central))
     out["planned_mw"] = planned_wind(model, frame, alpha)
-    width = out["band_high_mw"] - out["band_low_mw"]
     rev = out["revision_mw"].abs()
     flags = pd.DataFrame(
         {
             "low_wind": assign_bins(frame, model)["level_bin"] == 0,
-            "wide_band": width > width.quantile(0.8),
             "big_revision": rev > rev.quantile(0.8),  # NaN revision -> False
         }
     )
