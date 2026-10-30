@@ -1,6 +1,6 @@
 # Architecture
 
-_Status: M1 (data layer + snapshot). Updated after every milestone._
+_Status: M2 (core analytics). Updated after every milestone._
 
 ```
             offline, once                         runtime (one container / one process)
@@ -26,6 +26,28 @@ _Status: M1 (data layer + snapshot). Updated after every milestone._
 | `loaders.py` | `load_snapshot()` reads the CSVs, then the pure `clean_actuals` / `clean_forecasts` count every dropped row. `detect_resolution_min` returns 30 or 60. |
 
 Snapshot (committed): 116 KB in total. FUELHH 1,584 half-hours; WINDFOR 19,856 rows → 15,775 after cleaning, hourly resolution.
+
+## Core layer (`backend/app/core/`): pure functions, no I/O
+
+One request's numbers flow through these in order:
+
+```
+forecasts ─► selection ─► alignment.score ─► scored frame ─► metrics
+                                   actuals ─┘        │
+                                                     └► correction (centre_mw) ─► bands ─► planner
+```
+
+| File | Job |
+|---|---|
+| `timeutils.py` | UK-local rules on UTC data: delivery date (R5), DST-safe D-1 cutoff (R1), settlement period. |
+| `selection.py` | One forecast row per hour: latest `publishTime ≤` D-1 cutoff (R2) or `≤ startTime − h` (R8). Previous publish → revision. |
+| `alignment.py` | Hourly mean of the two FUELHH half-hours, join, `error_mw = actual − forecast` (R7), coverage counts (R11). |
+| `metrics.py` | MAE/RMSE/bias, quantiles, exceedance, breakdowns, worst misses, same-period comparisons, actual ÷ forecast by level. |
+| `correction.py` | raw / constant / linear post-processing fitted on train days; output `centre_mw`. Reads only the forecast (guarded). |
+| `bands.py` | Train residuals per horizon × level cell (fallback horizon → pooled), quantiles on demand, PICP + by-day bootstrap. |
+| `planner.py` | Newsvendor alpha (R9), planned wind = centre + residual quantile (≥ 0, R10), policy backtest in MWh (and £). |
+
+`backend/app/report.py` (`python -m app.report`) composes these and prints the January summary. `scored_for()` there is what the M3 `DataStore` will cache.
 
 ## Current endpoints
 | Route | File |
